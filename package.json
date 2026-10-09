@@ -1,0 +1,24 @@
+{
+  "name": "particle-logo-demo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "test": "node --test --test-isolation=none tests/layout.test.js",
+    "test:browser": "playwright test",
+    "measure": "node scripts/measure-performance.mjs"
+  },
+  "dependencies": {
+    "three": "^0.186.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.0",
+    "vite": "^8.3.3"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  }
+}

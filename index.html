@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#ffffff" />
+    <meta name="description" content="A living letterform: a ribbon of green cubes gathers into a mark, then gently drifts." />
+    <title>t · From flow to form</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  </head>
+  <body>
+    <div class="page">
+      <header class="masthead">
+        <a class="wordmark" href="./" aria-label="Particle logo demo"><span class="brand-square"></span>t<span class="wordmark-caption">motion study</span></a>
+        <a class="source-link" href="/logo.svg" download="logo.svg">Download the SVG <span aria-hidden="true">↗</span></a>
+      </header>
+      <main>
+        <div class="intro">
+          <div><p class="eyebrow">A living letterform</p><h1>From flow to form<span>.</span></h1></div>
+          <p class="description">A thousand little movements. <br />One familiar shape.</p>
+        </div>
+        <figure class="demo" aria-label="Green rounded cubes flowing into a lowercase t and a separate square">
+          <div id="animation" class="stage">
+            <img class="initial-mark" src="/logo.svg" alt="" aria-hidden="true" />
+            <noscript><p class="no-script">Enable JavaScript to see the particles move.</p></noscript>
+          </div>
+          <figcaption class="demo-controls">
+            <div class="state"><span class="status-dot" aria-hidden="true"></span><span id="phase-label">Flowing</span><span class="state-separator" aria-hidden="true">/</span><span id="particle-label">Live particles</span></div>
+            <div class="buttons">
+              <button id="pause" type="button" disabled aria-label="Pause animation"><svg class="pause-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3v10M11 3v10" /></svg><span>Pause</span></button>
+              <button id="replay" type="button" disabled><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 6a5.3 5.3 0 1 1-.2 4M3 2v4h4" /></svg><span>Replay</span></button>
+            </div>
+          </figcaption>
+        </figure>
+      </main>
+      <footer><span>Flow. Gather. Breathe.</span><span>Made of movement<span class="footer-square" aria-hidden="true"></span></span></footer>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

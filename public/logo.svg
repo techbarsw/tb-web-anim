@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 370 612">
+  <title>Draft t mark</title>
+  <desc>Screenshot-derived placeholder. Replace these outlines with the approved brand artwork.</desc>
+  <g fill="#BDC950">
+    <rect id="square" x="38" y="24" width="90" height="90" rx="1"/>
+    <path id="letter" d="M139 119H229V214H329V292H229V470Q229 505 264 505H329V588H248Q139 588 139 475V292H85V214H139Z"/>
+  </g>
+</svg>
