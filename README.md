@@ -24,6 +24,18 @@ npm run preview
 
 The production output is in `dist/`. The demo has no runtime dependencies on remote fonts, services, or video files.
 
+## GitHub Pages
+
+The same production build works at a local server's root and at [techbarsw.github.io/tb-web-anim/](https://techbarsw.github.io/tb-web-anim/). Vite uses a relative base (`./`), and the scripts, stylesheet, SVG, favicon, and download link resolve within the deployed directory.
+
+The workflow in `.github/workflows/deploy.yml` installs dependencies, runs the unit tests, builds the demo, and publishes only `dist/` on pushes to `main`. It can also be run manually from the Actions tab. In the repository's **Settings → Pages → Build and deployment**, select **GitHub Actions** as the source; serving the repository's source files directly skips the required Vite build. See [GitHub's Pages workflow documentation](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages).
+
+To check the built site at both `/` and `/tb-web-anim/` locally:
+
+```sh
+npm run test:production
+```
+
 ## Replace the artwork
 
 `public/logo.svg` is a **draft traced by eye from the screenshots**, not an exact font match. Replace it with an SVG export of the approved glyph and square. Use filled vector outlines, a transparent background, and a `viewBox`; leave a visible gap between the square and letter. Avoid embedded fonts, external images, or an opaque background rectangle: the animation samples every opaque pixel.
@@ -42,7 +54,7 @@ Copy the animation modules from `src/` (`particle-logo.js`, `particle-layout.js`
 import { createParticleLogo } from './particle-logo.js';
 
 const logo = await createParticleLogo(document.querySelector('#hero-particles'), {
-  logoUrl: '/logo.svg',
+  logoUrl: new URL('logo.svg', document.baseURI).href,
   color: '#BDC950',
   seed: 17,
   // particleCount: 2400, // Optional override of the responsive default.

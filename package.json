@@ -9,6 +9,7 @@
     "preview": "vite preview --host 0.0.0.0",
     "test": "node --test --test-isolation=none tests/*.test.js",
     "test:browser": "playwright test",
+    "test:production": "npm run build && playwright test --config playwright.production.config.js",
     "measure": "node scripts/measure-performance.mjs"
   },
   "dependencies": {
