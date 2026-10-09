@@ -6,6 +6,7 @@ const pauseButton = document.querySelector('#pause');
 const replayButton = document.querySelector('#replay');
 const phaseLabel = document.querySelector('#phase-label');
 const particleLabel = document.querySelector('#particle-label');
+const stateSeparator = document.querySelector('.state-separator');
 const interactionHint = document.querySelector('#interaction-hint');
 let animation;
 let disposed = false;
@@ -17,11 +18,15 @@ function updateControls(state) {
   if (signature === lastControlState) return;
   lastControlState = signature;
   const isStatic = state.mode === 'static';
-  interactionHint.innerHTML = state.interactive && !state.paused
-    ? matchMedia('(any-hover: hover)').matches ? 'Move to attract. <br />Click to send a ripple.' : 'One familiar shape. <br />Tap to send a ripple.'
-    : 'A thousand little movements. <br />One familiar shape.';
+  const canInteract = state.interactive && !state.paused;
+  interactionHint.hidden = !canInteract;
+  interactionHint.textContent = canInteract
+    ? matchMedia('(any-hover: hover)').matches ? 'Move to attract · Click to send a ripple' : 'Tap to send a ripple'
+    : '';
   phaseLabel.textContent = isStatic ? 'Still mark' : state.paused ? 'Paused' : state.phase[0].toUpperCase() + state.phase.slice(1);
-  particleLabel.textContent = isStatic ? 'Ready for the homepage' : `${state.particleCount.toLocaleString()} cubes`;
+  particleLabel.textContent = isStatic ? '' : `${state.particleCount.toLocaleString()} cubes`;
+  particleLabel.hidden = isStatic;
+  stateSeparator.hidden = isStatic;
   pauseButton.disabled = isStatic;
   replayButton.disabled = isStatic;
   pauseButton.setAttribute('aria-label', state.paused ? 'Resume animation' : 'Pause animation');
