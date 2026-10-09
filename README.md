@@ -2,6 +2,8 @@
 
 A wide, folded, star-shaped ribbon cloud of green rounded cubes gathers into a lowercase **t** and a detached square. The finished mark has staggered depth layers, a bright front, and a darker interior, seen from a slight angle. The cloud has uneven density and independently shifting inner and outer edges. Gathering starts immediately, with a wave of arrivals, damped rebounds, and short-range neighbor contacts. After the intro, approximately 10% of the cubes along the letter's edges drift out and return every eight seconds. Every cube also moves gently around its center, bounded to 20% of its size. The square stays intact. Every cube exists throughout the animation.
 
+Move the pointer over the composition to tilt it gently and attract nearby cubes. Click to send an outward ripple that returns to the authored shape. Touch devices support tap ripples while retaining normal page scrolling.
+
 ## Run locally
 
 Use Node.js 22.12+ (or a current supported Node release).
@@ -28,7 +30,7 @@ The largest connected filled shape is treated as the letter. Other components, i
 
 ## Embed in a website
 
-Copy the animation modules from `src/` (`particle-logo.js`, `particle-layout.js`, `cube-geometry.js`, and `logo-mask.js`) into your application, install `three`, and provide the SVG as a same-origin static asset. No demo stylesheet is needed. Give the container an explicit height; the canvas fills it with a transparent background.
+Copy the animation modules from `src/` (`particle-logo.js`, `particle-layout.js`, `particle-interaction.js`, `cube-geometry.js`, and `logo-mask.js`) into your application, install `three`, and provide the SVG as a same-origin static asset. No demo stylesheet is needed. Give the container an explicit height; the canvas fills it with a transparent background.
 
 ```html
 <div id="hero-particles" style="width:100%;height:520px" aria-hidden="true"></div>
@@ -42,6 +44,7 @@ const logo = await createParticleLogo(document.querySelector('#hero-particles'),
   color: '#BDC950',
   seed: 17,
   // particleCount: 2400, // Optional override of the responsive default.
+  // interactive: false, // Optional: retain only the automatic animation.
 });
 
 logo.pause();
@@ -59,8 +62,20 @@ Call initialization only in the browser and await it before using the controller
 | `depthLayers` | 2 below 768px; 3 otherwise | Integer from 1 to 6, capped at particle count. Distributes the same total cubes across staggered layers. |
 | `color` | `#BDC950` | Base cube color, with small seeded variations. |
 | `seed` | `17` | Number or string for repeatable sampling and movement. |
+| `interactive` | `true` | Enables pointer tilt, magnetic attraction, and click/tap ripples within the container. Set `false` for automatic motion only. |
 
 `getState()` returns a read-only snapshot containing mode, phase, elapsed animation seconds, manual pause state, whether rendering is running, particle/drift counts, depth-layer count, measured FPS, pixel ratio, and draw calls. The container also receives a bubbling `particlelogo:state` event about four times per second and on playback changes. This can drive surrounding controls without adding UI to the animation itself.
+
+The snapshot also reports `interactive` and an `interaction` object containing pointer activity, tilt angles in radians, active ripple count, affected particle count, and the largest local displacement in scene units.
+
+## Pointer interaction
+
+- Hover tilts the entire 3D composition by up to 3° and adds a small parallax shift. Nearby cubes lean toward the pointer within a soft influence area. A damped spring returns them as the pointer moves away or leaves the container.
+- Clicks send a wave outward, briefly displacing and rotating cubes before they settle. Each ripple lasts 2.6 animation seconds; up to four overlap, with their combined displacement capped. The detached square responds more gently to preserve its shape.
+- Interaction is weaker during gathering and reaches full strength as the logo forms. Pointer effects are added to the existing poses; destinations, particle identities, cube counts, and the automatic drift remain intact.
+- Pause freezes hover movement and ripples with the animation clock. Clicks while paused, offscreen, hidden, or in reduced-motion mode are ignored. Replay clears pointer offsets, tilt, and ripples before restarting the intro.
+- Touch movement does not create a persistent magnetic field or tilt. Taps trigger ripples; listeners do not capture pointers or prevent normal scrolling. Reduced-motion and unavailable-WebGL visitors retain the static SVG.
+- Pointer listeners attach to the animation root, so surrounding links and controls keep their usual behavior. Destruction removes these listeners along with the rendering resources.
 
 The animation is decorative. Provide any necessary brand name or equivalent accessible content in the surrounding page.
 
@@ -71,6 +86,7 @@ The animation is decorative. Provide any necessary brand name or equivalent acce
 - Intro timing: no cloud dwell, approximately 3.6 seconds of gathering and settling, a brief 0.4-second hold, then an eight-second breathing cycle. Each cube has a wave-based delay, accelerated travel, and a short damped impact response. A small precomputed neighborhood supplies soft separation during arrivals, rather than a full rigid-body engine.
 - Finished positions use shuffled, jittered sampling in three staggered layers on desktop and two on small screens. Cube sides are 30% smaller than the original layered version, with the same destinations and particle counts. Rear cubes add depth behind the front. Seeded color variations and baked interior darkening suggest occlusion between layers while keeping front faces bright. A slight camera angle exposes the sides. Continuous, seeded micro-motion remains within 20% of each cube's side around its moving center.
 - Offscreen and hidden-tab suspension freezes the animation clock; returning to the page continues from the same moment. Resizing preserves particle identities and adjusts camera framing.
+- Interaction reuses displacement and velocity buffers, projects the pointer onto the composition plane once per frame, and uses the existing mesh and draw call. Ripple storage is fixed in size.
 - Frame time advances by at most 100ms per rendered frame so a stalled or slow renderer cannot skip the arrival wave. Below 10 FPS, the intro runs more slowly instead of jumping to the completed mark.
 - Reduced-motion visitors and browsers without WebGL 2 get the static SVG with no animation loop. Initially static instances stay static until recreated. An existing animated instance responds to preference changes and restores motion when allowed.
 - WebGL context loss shows the static mark; context restoration resumes the existing particles. `destroy()` removes the canvas, observers, listeners, animation frame, and GPU resources.
@@ -84,7 +100,7 @@ npm run test:browser
 npm run measure
 ```
 
-The browser suite runs on a separate test server at port 5174 with file watching and hot reload disabled. It covers the immediate arrival wave and contacts, intro, drift, controls, responsive density and layer counts, offscreen suspension, reduced motion, WebGL fallback/context recovery, invalid SVG cleanup, and destruction. Unit tests verify sampled destinations stay inside the mask, staggered layers have real depth and preserve both components, seeded layouts are repeatable, micro-motion stays bounded, neighbors separate on impact, and phase transitions are continuous.
+The browser suite runs on a separate test server at port 5174 with file watching and hot reload disabled. It covers the immediate arrival wave and contacts, intro, drift, controls, responsive density and layer counts, hover attraction/tilt and return, click/tap ripples, paused input, replay reset, disabled interaction, offscreen suspension, reduced motion, WebGL fallback/context recovery, invalid SVG cleanup, and destruction. Unit tests verify sampled destinations stay inside the mask, staggered layers preserve both components, seeded layouts are repeatable, micro-motion stays bounded, neighbors separate on impact, and phase transitions are continuous. Interaction tests verify spring stability across frame rates, local attraction, wave propagation, bounded rapid clicks, protection of the square, and complete reset.
 
 `npm run measure` starts a local Vite server if needed, captures ribbon/mark/drift screenshots, and records eight-second frame measurements at desktop and mobile sizes in `artifacts/performance.json`. By default it uses Chromium's software WebGL renderer for reproducibility. These are host measurements, **not physical mobile-device benchmarks**. Target 60 FPS on desktop and 30 FPS on mobile; profile on the actual target devices before homepage integration. See `PERFORMANCE.md` for the latest checked results.
 

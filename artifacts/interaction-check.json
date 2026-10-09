@@ -1,0 +1,112 @@
+{
+  "checkedAt": "2026-10-09T08:42:01.010Z",
+  "browser": "151.0.7922.34",
+  "note": "Production preview with software WebGL; these are functional snapshots, not hardware FPS benchmarks.",
+  "captures": {
+    "hover": {
+      "mode": "animated",
+      "reason": null,
+      "phase": "drifting",
+      "elapsed": 4.116600000000002,
+      "paused": true,
+      "running": false,
+      "destroyed": false,
+      "particleCount": 2400,
+      "driftingCount": 240,
+      "depthLayers": 3,
+      "fps": 2.8236622899901165,
+      "pixelRatio": 1,
+      "drawCalls": 1,
+      "triangles": 220800,
+      "contacts": 0,
+      "interactive": true,
+      "interaction": {
+        "pointerActive": false,
+        "tiltX": -0.004217396231878709,
+        "tiltY": 0.00210869832022416,
+        "activeRipples": 0,
+        "affectedParticles": 408,
+        "maxDisplacement": 0.023063612563806568
+      }
+    },
+    "ripple": {
+      "mode": "animated",
+      "reason": null,
+      "phase": "drifting",
+      "elapsed": 4.333200000000005,
+      "paused": true,
+      "running": false,
+      "destroyed": false,
+      "particleCount": 2400,
+      "driftingCount": 240,
+      "depthLayers": 3,
+      "fps": 2.8236622899901165,
+      "pixelRatio": 1,
+      "drawCalls": 1,
+      "triangles": 220800,
+      "contacts": 0,
+      "interactive": true,
+      "interaction": {
+        "pointerActive": false,
+        "tiltX": 0.003160551955295234,
+        "tiltY": 0.0004629532727729354,
+        "activeRipples": 1,
+        "affectedParticles": 777,
+        "maxDisplacement": 0.20045626655837775
+      }
+    },
+    "returned": {
+      "mode": "animated",
+      "reason": null,
+      "phase": "drifting",
+      "elapsed": 6.816566000000004,
+      "paused": false,
+      "running": true,
+      "destroyed": false,
+      "particleCount": 2400,
+      "driftingCount": 240,
+      "depthLayers": 3,
+      "fps": 5.454687134730776,
+      "pixelRatio": 1,
+      "drawCalls": 1,
+      "triangles": 220800,
+      "contacts": 0,
+      "interactive": true,
+      "interaction": {
+        "pointerActive": false,
+        "tiltX": 8.91616058013825e-11,
+        "tiltY": 1.3060268521225603e-11,
+        "activeRipples": 0,
+        "affectedParticles": 0,
+        "maxDisplacement": 3.349848219524357e-10
+      }
+    },
+    "touch": {
+      "mode": "animated",
+      "reason": null,
+      "phase": "drifting",
+      "elapsed": 4.049900000000002,
+      "paused": true,
+      "running": false,
+      "destroyed": false,
+      "particleCount": 1200,
+      "driftingCount": 120,
+      "depthLayers": 2,
+      "fps": 4.615739672282484,
+      "pixelRatio": 1,
+      "drawCalls": 1,
+      "triangles": 110400,
+      "contacts": 0,
+      "interactive": true,
+      "interaction": {
+        "pointerActive": false,
+        "tiltX": 0,
+        "tiltY": 0,
+        "activeRipples": 1,
+        "affectedParticles": 150,
+        "maxDisplacement": 0.18530821776088766
+      }
+    }
+  },
+  "errors": []
+}

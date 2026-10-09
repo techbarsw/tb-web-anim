@@ -7,7 +7,7 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "test": "node --test --test-isolation=none tests/layout.test.js",
+    "test": "node --test --test-isolation=none tests/*.test.js",
     "test:browser": "playwright test",
     "measure": "node scripts/measure-performance.mjs"
   },

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { createRoundedCubeGeometry } from './cube-geometry.js';
 import { createParticleLayout, phaseAt, resolveArrivalContacts, writeParticleTransform } from './particle-layout.js';
 import { loadLogoMask } from './logo-mask.js';
+import { addClickRipple, advanceInteraction, applyParticleInteraction, createInteractionState, resetInteraction, TILT_LIMIT } from './particle-interaction.js';
 
 /**
  * Mount a decorative animation into an element with a defined width and height.
@@ -14,6 +15,7 @@ export async function createParticleLogo(container, options = {}) {
   if (!Number.isInteger(count) || count < 1 || count > 12000) throw new RangeError('particleCount must be an integer between 1 and 12000.');
   const depthLayers = options.depthLayers ?? (smallScreen ? 2 : 3);
   if (!Number.isInteger(depthLayers) || depthLayers < 1 || depthLayers > 6) throw new RangeError('depthLayers must be an integer between 1 and 6.');
+  if (options.interactive !== undefined && typeof options.interactive !== 'boolean') throw new TypeError('interactive must be a boolean.');
   const logoUrl = options.logoUrl ?? new URL('logo.svg', document.baseURI).href;
   const motionPreference = matchMedia('(prefers-reduced-motion: reduce)');
   const root = document.createElement('div');
@@ -36,9 +38,14 @@ export async function createParticleLogo(container, options = {}) {
   let width = 0, height = 0, squeeze = 1, fps = 0;
   let sampleStarted = null, sampleFrames = 0, samples = 0;
   let pixelRatio = Math.min(window.devicePixelRatio || 1, smallScreen ? 1.25 : 1.5);
-  let positions, orientations, contacts = 0;
+  let positions, orientations, interaction, contacts = 0;
   const transform = {};
   const dummy = new THREE.Object3D();
+  const screenPointer = new THREE.Vector2();
+  const pointerPoint = new THREE.Vector3();
+  const pointerNormal = new THREE.Vector3();
+  const pointerPlane = new THREE.Plane();
+  const pointerRay = new THREE.Raycaster();
   const canRun = () => !destroyed && mode === 'animated' && !manuallyPaused && inView && !document.hidden && !motionPreference.matches && !contextLost && width > 0 && height > 0;
   const getState = () => ({
     mode: motionPreference.matches || contextLost ? 'static' : mode,
@@ -51,6 +58,14 @@ export async function createParticleLogo(container, options = {}) {
     drawCalls: renderer?.info.render.calls ?? 0,
     triangles: renderer?.info.render.triangles ?? 0,
     contacts,
+    interactive: Boolean(interaction) && mode === 'animated' && !motionPreference.matches && !contextLost && !destroyed,
+    interaction: {
+      pointerActive: interaction?.pointerActive ?? false,
+      tiltX: interaction?.tiltX ?? 0, tiltY: interaction?.tiltY ?? 0,
+      activeRipples: interaction?.ripples.reduce((total, ripple) => total + Number(ripple.active), 0) ?? 0,
+      affectedParticles: interaction?.affectedParticles ?? 0,
+      maxDisplacement: interaction?.maxDisplacement ?? 0,
+    },
   });
   const emit = () => {
     if (destroyed) return;
@@ -66,10 +81,53 @@ export async function createParticleLogo(container, options = {}) {
     renderer.domElement.style.display = show ? 'block' : 'none';
   };
 
-  function draw() {
+  function projectPointer(x, y) {
+    screenPointer.set(x, y);
+    pointerRay.setFromCamera(screenPointer, camera);
+    pointerNormal.set(0, 0, 1).applyQuaternion(mesh.quaternion);
+    pointerPlane.setFromNormalAndCoplanarPoint(pointerNormal, mesh.position);
+    if (!pointerRay.ray.intersectPlane(pointerPlane, pointerPoint)) return false;
+    mesh.worldToLocal(pointerPoint);
+    return true;
+  }
+
+  function pointerCoordinates(event) {
+    const rect = root.getBoundingClientRect();
+    if (!rect.width || !rect.height) return false;
+    screenPointer.set((event.clientX - rect.left) / rect.width * 2 - 1, 1 - (event.clientY - rect.top) / rect.height * 2);
+    return Math.abs(screenPointer.x) <= 1 && Math.abs(screenPointer.y) <= 1;
+  }
+
+  function onPointerMove(event) {
+    if (!interaction || event.pointerType === 'touch' || !canRun() || !pointerCoordinates(event)) return;
+    interaction.pointerActive = true;
+    interaction.normalizedX = screenPointer.x;
+    interaction.normalizedY = screenPointer.y;
+  }
+  function onPointerLeave() { if (interaction) interaction.pointerActive = false; }
+  function onClick(event) {
+    if (!interaction || event.button !== 0 || !canRun() || !pointerCoordinates(event)) return;
+    if (projectPointer(screenPointer.x, screenPointer.y)) {
+      addClickRipple(interaction, pointerPoint.x, pointerPoint.y, elapsed);
+      emit();
+    }
+  }
+
+  function draw(delta = 0) {
     if (!renderer || !layout || !width || !height || contextLost || destroyed) return;
+    if (interaction) {
+      advanceInteraction(interaction, delta, elapsed);
+      mesh.rotation.set(interaction.tiltX, interaction.tiltY, 0);
+      mesh.position.set(interaction.tiltY / TILT_LIMIT * 0.06, -interaction.tiltX / TILT_LIMIT * 0.04, 0);
+      mesh.updateMatrixWorld();
+      if (interaction.presence > 0.0001 && projectPointer(interaction.normalizedX, interaction.normalizedY)) {
+        interaction.pointerX = pointerPoint.x;
+        interaction.pointerY = pointerPoint.y;
+      }
+    }
     for (let index = 0; index < count; index++) {
       writeParticleTransform(layout, index, elapsed, squeeze, transform);
+      if (interaction) applyParticleInteraction(interaction, layout, index, transform);
       const p = index * 3, r = index * 4;
       positions[p] = transform.x; positions[p + 1] = transform.y; positions[p + 2] = transform.z;
       orientations[r] = transform.rx; orientations[r + 1] = transform.ry; orientations[r + 2] = transform.rz; orientations[r + 3] = transform.scale;
@@ -95,6 +153,8 @@ export async function createParticleLogo(container, options = {}) {
     previousTime = null;
     sampleStarted = null;
     sampleFrames = 0;
+    if (motionPreference.matches && interaction) resetInteraction(interaction);
+    else if (!canRun()) onPointerLeave();
     if (canRun()) raf = requestAnimationFrame(frame);
     if (renderer) {
       showCanvas(!motionPreference.matches && !contextLost);
@@ -110,9 +170,10 @@ export async function createParticleLogo(container, options = {}) {
     if (!canRun()) { syncPlayback(); return; }
     // Long GPU frames must not skip the entire impact wave. Normal refresh
     // rates keep real-time timing; slow renderers progress through the poses.
-    if (previousTime !== null) elapsed += Math.min(0.1, (timestamp - previousTime) / 1000);
+    const delta = previousTime === null ? 0 : Math.min(0.1, (timestamp - previousTime) / 1000);
+    elapsed += delta;
     previousTime = timestamp;
-    draw();
+    draw(delta);
     if (sampleStarted === null) sampleStarted = timestamp;
     sampleFrames++;
     const sampleDuration = (timestamp - sampleStarted) / 1000;
@@ -134,8 +195,10 @@ export async function createParticleLogo(container, options = {}) {
 
   function resize() {
     if (destroyed || !renderer) return;
-    width = root.clientWidth;
-    height = root.clientHeight;
+    const nextWidth = root.clientWidth, nextHeight = root.clientHeight;
+    if (nextWidth !== width || nextHeight !== height) onPointerLeave();
+    width = nextWidth;
+    height = nextHeight;
     if (width && height) {
       const aspect = width / height;
       squeeze = Math.min(1, Math.max(0.35, aspect * 0.9));
@@ -151,7 +214,10 @@ export async function createParticleLogo(container, options = {}) {
     syncPlayback();
   }
 
-  function onMotionChange() { draw(); syncPlayback(); }
+  function onMotionChange() {
+    syncPlayback();
+    if (!motionPreference.matches) draw();
+  }
   function onContextLost(event) {
     event.preventDefault();
     contextLost = true;
@@ -167,12 +233,17 @@ export async function createParticleLogo(container, options = {}) {
   function dispose() {
     if (destroyed) return;
     destroyed = true;
+    if (interaction) resetInteraction(interaction);
     if (raf) cancelAnimationFrame(raf);
     raf = 0;
     resizeObserver?.disconnect();
     intersectionObserver?.disconnect();
     document.removeEventListener('visibilitychange', syncPlayback);
     motionPreference.removeEventListener('change', onMotionChange);
+    root.removeEventListener('pointermove', onPointerMove);
+    root.removeEventListener('pointerleave', onPointerLeave);
+    root.removeEventListener('pointercancel', onPointerLeave);
+    root.removeEventListener('click', onClick);
     renderer?.domElement.removeEventListener('webglcontextlost', onContextLost);
     renderer?.domElement.removeEventListener('webglcontextrestored', onContextRestored);
     geometry?.dispose();
@@ -190,6 +261,7 @@ export async function createParticleLogo(container, options = {}) {
     replay() {
       if (destroyed) return;
       elapsed = 0; manuallyPaused = false; lastEmit = -Infinity;
+      if (interaction) resetInteraction(interaction);
       draw(); syncPlayback();
     },
     destroy: dispose,
@@ -205,6 +277,7 @@ export async function createParticleLogo(container, options = {}) {
     layout = createParticleLayout(await loadLogoMask(logoUrl), count, options.seed ?? 17, depthLayers);
     positions = new Float32Array(count * 3);
     orientations = new Float32Array(count * 4);
+    if (options.interactive !== false) interaction = createInteractionState(count);
     renderer = new THREE.WebGLRenderer({ canvas, context, alpha: true, antialias: true });
     renderer.setPixelRatio(pixelRatio);
     renderer.setClearColor(0xffffff, 0);
@@ -259,6 +332,12 @@ export async function createParticleLogo(container, options = {}) {
     motionPreference.addEventListener('change', onMotionChange);
     canvas.addEventListener('webglcontextlost', onContextLost);
     canvas.addEventListener('webglcontextrestored', onContextRestored);
+    if (interaction) {
+      root.addEventListener('pointermove', onPointerMove, { passive: true });
+      root.addEventListener('pointerleave', onPointerLeave, { passive: true });
+      root.addEventListener('pointercancel', onPointerLeave, { passive: true });
+      root.addEventListener('click', onClick, { passive: true });
+    }
     resizeObserver = new ResizeObserver(resize);
     resizeObserver.observe(root);
     intersectionObserver = new IntersectionObserver(([entry]) => { inView = entry.isIntersecting; syncPlayback(); }, { threshold: 0 });

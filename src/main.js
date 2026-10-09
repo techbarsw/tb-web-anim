@@ -6,16 +6,20 @@ const pauseButton = document.querySelector('#pause');
 const replayButton = document.querySelector('#replay');
 const phaseLabel = document.querySelector('#phase-label');
 const particleLabel = document.querySelector('#particle-label');
+const interactionHint = document.querySelector('#interaction-hint');
 let animation;
 let disposed = false;
 const events = new AbortController();
 let lastControlState = '';
 
 function updateControls(state) {
-  const signature = `${state.mode}/${state.paused}/${state.phase}/${state.particleCount}`;
+  const signature = `${state.mode}/${state.paused}/${state.phase}/${state.particleCount}/${state.interactive}`;
   if (signature === lastControlState) return;
   lastControlState = signature;
   const isStatic = state.mode === 'static';
+  interactionHint.innerHTML = state.interactive && !state.paused
+    ? matchMedia('(any-hover: hover)').matches ? 'Move to attract. <br />Click to send a ripple.' : 'One familiar shape. <br />Tap to send a ripple.'
+    : 'A thousand little movements. <br />One familiar shape.';
   phaseLabel.textContent = isStatic ? 'Still mark' : state.paused ? 'Paused' : state.phase[0].toUpperCase() + state.phase.slice(1);
   particleLabel.textContent = isStatic ? 'Ready for the homepage' : `${state.particleCount.toLocaleString()} cubes`;
   pauseButton.disabled = isStatic;

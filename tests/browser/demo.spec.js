@@ -144,3 +144,88 @@ test('destroy is idempotent and invalid SVG initialization cleans up its DOM', a
   expect(result.message).toMatch(/valid SVG/);
   expect(result.roots).toBe(0);
 });
+
+test('hover tilts the composition, attracts nearby cubes, and settles when the pointer leaves', async ({ page }) => {
+  test.setTimeout(60000);
+  await page.goto('/');
+  await expect(page.locator('.particle-logo')).toHaveAttribute('data-mode', 'animated');
+  const bounds = await page.locator('#animation').boundingBox();
+  await page.mouse.move(bounds.x + bounds.width * 0.54, bounds.y + bounds.height * 0.42);
+  await expect.poll(async () => Math.abs((await state(page)).interaction.tiltY), { timeout: 15000 }).toBeGreaterThan(0.0005);
+  await expect.poll(async () => (await state(page)).interaction.affectedParticles).toBeGreaterThan(0);
+  const hovering = await state(page);
+  expect(hovering.interactive).toBe(true);
+  expect(hovering.interaction.pointerActive).toBe(true);
+  expect(hovering.interaction.maxDisplacement).toBeGreaterThan(0.001);
+  expect(hovering.particleCount).toBe(2400);
+  expect(hovering.drawCalls).toBe(1);
+  await page.mouse.move(10, 10);
+  await expect.poll(async () => (await state(page)).interaction.pointerActive).toBe(false);
+  await expect.poll(async () => (await state(page)).interaction.maxDisplacement, { timeout: 15000 }).toBeLessThan(0.001);
+  await expect.poll(async () => Math.abs((await state(page)).interaction.tiltY), { timeout: 15000 }).toBeLessThan(0.0001);
+});
+
+test('click ripples animate, pause with the clock, stay inside the demo, and reset on replay', async ({ page }) => {
+  test.setTimeout(60000);
+  await page.goto('/');
+  await expect(page.locator('.particle-logo')).toHaveAttribute('data-mode', 'animated');
+  await expect.poll(async () => (await state(page)).elapsed, { timeout: 25000 }).toBeGreaterThan(3.6);
+  const bounds = await page.locator('#animation').boundingBox();
+  await page.mouse.click(bounds.x + bounds.width * 0.5, bounds.y + bounds.height * 0.55);
+  await expect.poll(async () => (await state(page)).interaction.activeRipples).toBe(1);
+  await expect.poll(async () => (await state(page)).interaction.maxDisplacement, { timeout: 10000 }).toBeGreaterThan(0.16);
+  await page.evaluate(() => document.querySelector('#animation').particleLogo.pause());
+  const paused = await state(page);
+  await page.mouse.click(bounds.x + bounds.width * 0.52, bounds.y + bounds.height * 0.52);
+  await page.waitForTimeout(300);
+  const frozen = await state(page);
+  expect(frozen.elapsed).toBe(paused.elapsed);
+  expect(frozen.interaction.activeRipples).toBe(paused.interaction.activeRipples);
+  expect(frozen.interaction.maxDisplacement).toBe(paused.interaction.maxDisplacement);
+  expect(frozen.interaction.tiltY).toBe(paused.interaction.tiltY);
+  await page.evaluate(() => document.querySelector('#animation').particleLogo.resume());
+  await expect.poll(async () => (await state(page)).interaction.activeRipples, { timeout: 15000 }).toBe(0);
+  await page.mouse.click(250, 200);
+  expect((await state(page)).interaction.activeRipples).toBe(0);
+  await page.mouse.click(bounds.x + bounds.width * 0.5, bounds.y + bounds.height * 0.55);
+  await page.getByRole('button', { name: 'Replay' }).click();
+  const replayed = await state(page);
+  expect(replayed.elapsed).toBeLessThan(1);
+  expect(replayed.interaction.activeRipples).toBe(0);
+  expect(replayed.interaction.tiltY).toBe(0);
+  expect(replayed.particleCount).toBe(2400);
+});
+
+test('touch taps produce ripples without a persistent hover or tilt', async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  const page = await context.newPage();
+  try {
+    await page.goto('http://127.0.0.1:5174/');
+    await expect(page.locator('.particle-logo')).toHaveAttribute('data-mode', 'animated');
+    const bounds = await page.locator('#animation').boundingBox();
+    await page.touchscreen.tap(bounds.x + bounds.width * 0.5, bounds.y + bounds.height * 0.5);
+    const tapped = await state(page);
+    expect(tapped.particleCount).toBe(1200);
+    expect(tapped.interaction.activeRipples).toBe(1);
+    expect(tapped.interaction.pointerActive).toBe(false);
+    expect(tapped.interaction.tiltX).toBe(0);
+    expect(tapped.interaction.tiltY).toBe(0);
+  } finally { await context.close(); }
+});
+
+test('embedding can disable interaction while the automatic animation continues', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('.particle-logo')).toHaveAttribute('data-mode', 'animated');
+  await page.evaluate(async () => {
+    const host = document.querySelector('#animation');
+    host.particleLogo.destroy();
+    const { createParticleLogo } = await import('/src/particle-logo.js');
+    host.particleLogo = await createParticleLogo(host, { particleCount: 300, interactive: false });
+  });
+  const initial = await state(page);
+  expect(initial.interactive).toBe(false);
+  const bounds = await page.locator('#animation').boundingBox();
+  await page.mouse.click(bounds.x + bounds.width * 0.55, bounds.y + bounds.height * 0.45);
+  await expect.poll(async () => (await state(page)).elapsed).toBeGreaterThan(initial.elapsed);
+  expect((await state(page)).interaction).toEqual({ pointerActive: false, tiltX: 0, tiltY: 0, activeRipples: 0, affectedParticles: 0, maxDisplacement: 0 });
+});
