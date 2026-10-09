@@ -15,6 +15,8 @@ npm run dev
 
 Open the local URL printed by Vite. Pause/resume and replay controls sit below the animation.
 
+The composition stays hidden during initialization and fades in over 0.5 seconds after its first valid render. Static fallbacks wait for the SVG to decode; reduced-motion visitors get an immediate reveal. Replay restarts the motion without repeating the startup fade.
+
 ```sh
 npm run build
 npm run preview

@@ -47,6 +47,11 @@ try {
   }
 } catch (error) {
   console.error('Particle animation could not start:', error);
+  const initialMark = container.querySelector('.initial-mark');
+  if (!disposed && initialMark) {
+    await initialMark.decode().catch(() => {});
+    if (!disposed) initialMark.style.opacity = '.85';
+  }
   phaseLabel.textContent = 'Still mark';
   particleLabel.textContent = 'Animation unavailable';
 }

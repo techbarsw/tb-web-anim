@@ -21,7 +21,8 @@ export async function createParticleLogo(container, options = {}) {
   const root = document.createElement('div');
   root.className = 'particle-logo';
   root.setAttribute('aria-hidden', 'true');
-  root.style.cssText = 'position:relative;width:100%;height:100%;overflow:hidden;';
+  root.style.cssText = 'position:relative;width:100%;height:100%;overflow:hidden;opacity:0;transition:opacity 500ms ease;';
+  root.dataset.ready = 'false';
   const fallback = new Image();
   fallback.className = 'particle-logo-fallback';
   fallback.src = logoUrl;
@@ -33,6 +34,7 @@ export async function createParticleLogo(container, options = {}) {
   let renderer, mesh, geometry, material, scene, camera, layout;
   let resizeObserver, intersectionObserver;
   let elapsed = 0, raf = 0, previousTime = null, lastEmit = -Infinity;
+  let revealFrame = 0, revealed = false;
   let destroyed = false, manuallyPaused = false, inView = true, contextLost = false;
   let mode = 'static', reason = motionPreference.matches ? 'reduced-motion' : 'webgl-unavailable';
   let width = 0, height = 0, squeeze = 1, fps = 0;
@@ -80,6 +82,28 @@ export async function createParticleLogo(container, options = {}) {
     renderer.domElement.hidden = !show;
     renderer.domElement.style.display = show ? 'block' : 'none';
   };
+
+  function reveal() {
+    if (destroyed || revealed || revealFrame) return;
+    // Establish the hidden style before changing it, even on a cached load.
+    getComputedStyle(root).opacity;
+    revealFrame = requestAnimationFrame(() => {
+      revealFrame = 0;
+      if (destroyed) return;
+      revealed = true;
+      root.style.transition = motionPreference.matches ? 'none' : 'opacity 500ms ease';
+      root.style.opacity = '1';
+      root.dataset.ready = 'true';
+    });
+  }
+
+  async function revealStatic() {
+    await fallback.decode().catch(() => {});
+    if (destroyed) return;
+    showFallback(true);
+    reveal();
+    emit();
+  }
 
   function projectPointer(x, y) {
     screenPointer.set(x, y);
@@ -145,6 +169,7 @@ export async function createParticleLogo(container, options = {}) {
     renderer.render(scene, camera);
     showFallback(motionPreference.matches);
     showCanvas(!motionPreference.matches);
+    reveal();
   }
 
   function syncPlayback() {
@@ -236,6 +261,8 @@ export async function createParticleLogo(container, options = {}) {
     if (interaction) resetInteraction(interaction);
     if (raf) cancelAnimationFrame(raf);
     raf = 0;
+    if (revealFrame) cancelAnimationFrame(revealFrame);
+    revealFrame = 0;
     resizeObserver?.disconnect();
     intersectionObserver?.disconnect();
     document.removeEventListener('visibilitychange', syncPlayback);
@@ -268,11 +295,11 @@ export async function createParticleLogo(container, options = {}) {
   };
 
   // Reduced-motion visitors never allocate a WebGL context or load particle data.
-  if (motionPreference.matches) { emit(); return controller; }
+  if (motionPreference.matches) { await revealStatic(); return controller; }
   const canvas = document.createElement('canvas');
   let context;
   try { context = canvas.getContext('webgl2', { alpha: true, antialias: true, powerPreference: 'low-power' }); } catch { context = null; }
-  if (!context) { emit(); return controller; }
+  if (!context) { await revealStatic(); return controller; }
   try {
     layout = createParticleLayout(await loadLogoMask(logoUrl), count, options.seed ?? 17, depthLayers);
     positions = new Float32Array(count * 3);

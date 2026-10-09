@@ -2,6 +2,36 @@ import { test, expect } from '@playwright/test';
 
 const state = (page) => page.evaluate(() => document.querySelector('#animation').particleLogo.getState());
 
+test('loading stays hidden until the first render, then fades in once over half a second', async ({ page }) => {
+  let releaseLogo;
+  const logoReady = new Promise((resolve) => { releaseLogo = resolve; });
+  await page.route('**/logo.svg', async (route) => {
+    await logoReady;
+    await route.continue();
+  });
+  try {
+    await page.goto('/', { waitUntil: 'commit' });
+    const composition = page.locator('.particle-logo');
+    await expect(composition).toHaveAttribute('data-ready', 'false');
+    await expect(composition).toHaveCSS('opacity', '0');
+    await expect(page.locator('.initial-mark')).toHaveCSS('opacity', '0');
+    await expect(composition.locator('canvas')).toHaveCount(0);
+
+    releaseLogo();
+    await expect(composition).toHaveAttribute('data-mode', 'animated', { timeout: 15000 });
+    await expect(composition).toHaveAttribute('data-ready', 'true');
+    await expect(composition).toHaveCSS('transition-duration', '0.5s');
+    await expect(composition).toHaveCSS('opacity', '1');
+    await expect(composition.locator('canvas')).toBeVisible();
+    await expect(page.locator('.particle-logo-fallback')).toBeHidden();
+    await page.getByRole('button', { name: 'Replay' }).click();
+    await expect(composition).toHaveCSS('opacity', '1');
+    await expect(composition).toHaveAttribute('data-ready', 'true');
+  } finally {
+    releaseLogo();
+  }
+});
+
 test('intro reaches a legible mark, drifts, pauses, and replays without changing particle count', async ({ page }) => {
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message));
@@ -62,6 +92,9 @@ test('reduced motion renders the static SVG without creating a canvas', async ({
   await page.goto('/');
   await expect(page.locator('#phase-label')).toHaveText('Still mark');
   await expect(page.locator('.particle-logo-fallback')).toBeVisible();
+  await expect(page.locator('.particle-logo')).toHaveAttribute('data-ready', 'true');
+  await expect(page.locator('.particle-logo')).toHaveCSS('opacity', '1');
+  await expect(page.locator('.particle-logo')).toHaveCSS('transition-duration', '0s');
   await expect(page.locator('.particle-logo canvas')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Pause animation' })).toBeDisabled();
   expect((await state(page)).reason).toBe('reduced-motion');
@@ -108,6 +141,8 @@ test('WebGL unavailable leaves a usable static mark', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('#phase-label')).toHaveText('Still mark');
   await expect(page.locator('.particle-logo-fallback')).toBeVisible();
+  await expect(page.locator('.particle-logo')).toHaveAttribute('data-ready', 'true');
+  await expect(page.locator('.particle-logo')).toHaveCSS('opacity', '1');
   expect((await state(page)).reason).toBe('webgl-unavailable');
 });
 
